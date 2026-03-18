@@ -1,0 +1,7 @@
+cd '/home/lvuser/natinst/PythonApp'
+
+source venv/bin/activate
+
+python BasicDAQmxPythonExample.py
+
+python BasicFPGAPythonExample.py
