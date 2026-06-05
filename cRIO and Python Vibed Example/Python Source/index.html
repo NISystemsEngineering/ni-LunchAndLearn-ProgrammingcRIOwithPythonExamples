@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CompactRIO Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;500;700&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:         #0c0e12;
+    --surface:    #13161c;
+    --border:     #1e2330;
+    --border-hi:  #2a3040;
+    --text:       #c8cdd8;
+    --text-dim:   #5c6378;
+    --accent:     #3b82f6;
+    --accent-dim: rgba(59, 130, 246, 0.12);
+    --green:      #22c55e;
+    --green-dim:  rgba(34, 197, 94, 0.10);
+    --amber:      #f59e0b;
+    --red:        #ef4444;
+    --mono:       'IBM Plex Mono', 'Courier New', monospace;
+    --sans:       'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── Header ───────────────────────────────────────── */
+  header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green), 0 0 20px rgba(34,197,94,0.25);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .logo.disconnected { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex; gap: 24px; flex-wrap: wrap;
+  }
+  .meta span::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .meta .ts::before  { background: var(--accent); }
+  .meta .rate::before { background: var(--green); }
+
+  /* ── Status Banner ────────────────────────────────── */
+  #status-banner {
+    display: none;
+    padding: 10px 32px;
+    font-family: var(--mono);
+    font-size: 13px;
+    background: rgba(239,68,68,0.08);
+    border-bottom: 1px solid rgba(239,68,68,0.2);
+    color: var(--red);
+  }
+
+  /* ── Variable Grid ────────────────────────────────── */
+  main { padding: 28px 32px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    border-color: var(--border-hi);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+  .card.flash::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent-dim);
+    animation: flash-fade 0.6s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes flash-fade { to { opacity: 0; } }
+
+  .card-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-value {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.2;
+    word-break: break-all;
+  }
+  .card-value.stale { color: var(--text-dim); }
+
+  .card-footer {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-delta {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .card-delta.up   { background: var(--green-dim); color: var(--green); }
+  .card-delta.down { background: rgba(239,68,68,0.10); color: var(--red); }
+  .card-delta.same { background: rgba(92,99,120,0.15); color: var(--text-dim); }
+
+  .card-unit {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ── Sparkline ────────────────────────────────────── */
+  .sparkline {
+    margin-top: 12px;
+    height: 32px;
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .spark-bar {
+    flex: 1;
+    background: var(--accent);
+    opacity: 0.35;
+    border-radius: 1px 1px 0 0;
+    min-height: 1px;
+    transition: height 0.3s ease;
+  }
+
+  /* ── Empty / Error State ──────────────────────────── */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 2;
+  }
+  .empty-state code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* ── Settings Bar ─────────────────────────────────── */
+  .settings {
+    padding: 14px 32px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--bg);
+  }
+  .settings label { display: flex; align-items: center; gap: 6px; }
+  .settings input[type="range"] {
+    width: 80px;
+    accent-color: var(--accent);
+  }
+  .settings select, .settings input[type="number"] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 3px 6px;
+    border-radius: 4px;
+  }
+
+  body { padding-bottom: 56px; }
+
+  @media (max-width: 600px) {
+    header, main, .settings { padding-left: 16px; padding-right: 16px; }
+    .grid { grid-template-columns: 1fr; }
+    .card-value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo" id="status-dot"></div>
+    <h1>CompactRIO Dashboard</h1>
+  </div>
+  <div class="meta">
+    <span class="ts" id="meta-ts">Connecting…</span>
+    <span class="rate" id="meta-rate">1 Hz</span>
+  </div>
+</header>
+
+<div id="status-banner"></div>
+
+<main>
+  <div class="grid" id="grid">
+    <div class="empty-state">
+      Connecting to server…<br>
+      Expecting data at <code>GET /data</code>
+    </div>
+  </div>
+</main>
+
+<div class="settings">
+  <label>
+    Poll rate
+    <input type="range" id="poll-slider" min="200" max="5000" value="1000" step="100">
+    <span id="poll-label">1.0 s</span>
+  </label>
+  <label>
+    Sparkline depth
+    <input type="number" id="spark-depth" min="10" max="200" value="60" style="width:55px">
+  </label>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── State ──────────────────────────────────────────
+  let pollInterval = 1000;
+  let sparkDepth   = 60;
+  let timer        = null;
+  let prevValues   = {};          // name → previous numeric value
+  let history      = {};          // name → array of recent numeric values
+  let connected    = false;
+
+  const grid       = document.getElementById('grid');
+  const banner     = document.getElementById('status-banner');
+  const statusDot  = document.getElementById('status-dot');
+  const metaTs     = document.getElementById('meta-ts');
+  const metaRate   = document.getElementById('meta-rate');
+  const pollSlider = document.getElementById('poll-slider');
+  const pollLabel  = document.getElementById('poll-label');
+  const sparkInput = document.getElementById('spark-depth');
+
+  // ── Helpers ────────────────────────────────────────
+  function parseUnit(name) {
+    // Extract unit hint from variable name:  "Motor_Speed_RPM" → "RPM"
+    const parts = name.split('_');
+    const last = parts[parts.length - 1];
+    const known = ['RPM','C','F','K','PSI','BAR','V','A','W','GPM','LPM',
+                   'Pct','Hz','mm','m','s','ms','us','kg','lb','N','Nm'];
+    return known.includes(last) ? last : '';
+  }
+
+  function formatValue(v) {
+    if (typeof v === 'number') return v.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+    return String(v);
+  }
+
+  function deltaClass(curr, prev) {
+    if (prev == null || typeof curr !== 'number') return 'same';
+    if (curr > prev) return 'up';
+    if (curr < prev) return 'down';
+    return 'same';
+  }
+
+  function deltaText(curr, prev) {
+    if (prev == null || typeof curr !== 'number') return '—';
+    const d = curr - prev;
+    const sign = d > 0 ? '+' : '';
+    return sign + d.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  }
+
+  // ── Render ─────────────────────────────────────────
+  function renderGrid(variables) {
+    const names = Object.keys(variables);
+    if (!names.length) {
+      grid.innerHTML = '<div class="empty-state">No variables published yet.</div>';
+      return;
+    }
+
+    // Build or update cards
+    names.forEach(name => {
+      const val  = variables[name];
+      const unit = parseUnit(name);
+      let card   = document.getElementById('card-' + name);
+
+      // Track numeric history for sparklines
+      if (typeof val === 'number') {
+        if (!history[name]) history[name] = [];
+        history[name].push(val);
+        if (history[name].length > sparkDepth) history[name].shift();
+      }
+
+      if (!card) {
+        // Create new card
+        card = document.createElement('div');
+        card.className = 'card';
+        card.id = 'card-' + name;
+        card.innerHTML = `
+          <div class="card-name">${name.replace(/_/g, ' ')}</div>
+          <div class="card-value" data-field="value"></div>
+          <div class="card-footer">
+            <span class="card-delta" data-field="delta"></span>
+            <span class="card-unit">${unit}</span>
+          </div>
+          <div class="sparkline" data-field="spark"></div>`;
+        grid.appendChild(card);
+      }
+
+      // Update value
+      const valEl = card.querySelector('[data-field="value"]');
+      valEl.textContent = formatValue(val);
+
+      // Flash on change
+      if (prevValues[name] !== undefined && val !== prevValues[name]) {
+        card.classList.remove('flash');
+        void card.offsetWidth; // reflow
+        card.classList.add('flash');
+      }
+
+      // Delta badge
+      const dEl = card.querySelector('[data-field="delta"]');
+      const dc  = deltaClass(val, prevValues[name]);
+      dEl.textContent = deltaText(val, prevValues[name]);
+      dEl.className = 'card-delta ' + dc;
+
+      // Sparkline
+      if (history[name] && history[name].length > 1) {
+        const arr = history[name];
+        const min = Math.min(...arr);
+        const max = Math.max(...arr);
+        const range = max - min || 1;
+        const sparkEl = card.querySelector('[data-field="spark"]');
+        sparkEl.innerHTML = arr.map(v => {
+          const pct = ((v - min) / range) * 100;
+          return `<div class="spark-bar" style="height:${Math.max(pct, 3)}%"></div>`;
+        }).join('');
+      }
+
+      prevValues[name] = val;
+    });
+
+    // Remove cards for variables that no longer exist
+    Array.from(grid.children).forEach(el => {
+      if (el.id && el.id.startsWith('card-')) {
+        const varName = el.id.slice(5);
+        if (!(varName in variables)) {
+          el.remove();
+          delete prevValues[varName];
+          delete history[varName];
+        }
+      }
+    });
+  }
+
+  // ── Poll ───────────────────────────────────────────
+  async function poll() {
+    try {
+      const resp = await fetch('/data', { cache: 'no-store' });
+      const data = await resp.json();
+
+      if (data.error) {
+        showBanner(data.error);
+        setConnected(false);
+        return;
+      }
+
+      hideBanner();
+      setConnected(true);
+
+      // Update timestamp display
+      if (data._timestamp) {
+        metaTs.textContent = 'App: ' + data._timestamp;
+      } else {
+        metaTs.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+      }
+
+      // Remove internal keys, render the rest
+      const vars = data.variables || {};
+      renderGrid(vars);
+
+    } catch (e) {
+      showBanner('Cannot reach server — retrying…');
+      setConnected(false);
+    }
+  }
+
+  function setConnected(state) {
+    connected = state;
+    statusDot.classList.toggle('disconnected', !state);
+  }
+
+  function showBanner(msg) {
+    banner.textContent = msg;
+    banner.style.display = 'block';
+  }
+  function hideBanner() { banner.style.display = 'none'; }
+
+  function startPolling() {
+    clearInterval(timer);
+    timer = setInterval(poll, pollInterval);
+    poll();
+  }
+
+  // ── Controls ───────────────────────────────────────
+  pollSlider.addEventListener('input', () => {
+    pollInterval = parseInt(pollSlider.value, 10);
+    pollLabel.textContent = (pollInterval / 1000).toFixed(1) + ' s';
+    metaRate.textContent = (1000 / pollInterval).toFixed(1) + ' Hz';
+    startPolling();
+  });
+
+  sparkInput.addEventListener('change', () => {
+    sparkDepth = Math.max(10, Math.min(200, parseInt(sparkInput.value, 10) || 60));
+    sparkInput.value = sparkDepth;
+    // Trim existing histories
+    for (const k in history) {
+      if (history[k].length > sparkDepth) {
+        history[k] = history[k].slice(-sparkDepth);
+      }
+    }
+  });
+
+  // ── Start ──────────────────────────────────────────
+  startPolling();
+})();
+</script>
+</body>
+</html>

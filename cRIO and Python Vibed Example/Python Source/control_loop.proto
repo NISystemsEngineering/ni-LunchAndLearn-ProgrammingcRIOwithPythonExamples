@@ -1,0 +1,96 @@
+// control_loop.proto
+// gRPC service definition for NI CompactRIO closed-loop control.
+// Compile with:
+//   python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. control_loop.proto
+
+syntax = "proto3";
+
+package criocontrol;
+
+// ──────────────────────────────────────────────
+//  Messages
+// ──────────────────────────────────────────────
+
+// Empty request used by status / clear RPCs.
+message Empty {}
+
+// Snapshot of every value the control loop touches.
+message ControlLoopStatus {
+    // Latest value read from the analog-input channel (volts).
+    double ai_value           = 1;
+    // Value currently being written to the analog-output channel (volts).
+    double ao_value           = 2;
+    // Control-loop setpoint (volts).
+    double setpoint           = 3;
+    // Computed error  (setpoint − ai_value).
+    double error              = 4;
+    // True when the AI channel is being overridden with a fixed value.
+    bool   ai_override_active = 5;
+    // The fixed value used when ai_override_active is true.
+    double ai_override_value  = 6;
+    // True when the AO channel is being overridden with a fixed value.
+    bool   ao_override_active = 7;
+    // The fixed value used when ao_override_active is true.
+    double ao_override_value  = 8;
+    // Proportional gain currently in effect.
+    double kp                 = 9;
+    // True while the control loop is running.
+    bool   loop_running       = 10;
+    // Monotonic count of completed loop iterations.
+    uint64 iteration_count    = 11;
+}
+
+// Override the value that the control loop "sees" from the AI channel.
+message AIOverrideRequest {
+    bool   enable = 1;   // true → use override_value; false → read real hardware.
+    double value  = 2;   // Override voltage (ignored when enable is false).
+}
+
+// Override the value written to the AO channel.
+message AOOverrideRequest {
+    bool   enable = 1;   // true → write override_value; false → use controller output.
+    double value  = 2;   // Override voltage (ignored when enable is false).
+}
+
+// Change the setpoint at runtime.
+message SetpointRequest {
+    double setpoint = 1; // New setpoint in volts.
+}
+
+// Change the proportional gain at runtime.
+message GainRequest {
+    double kp = 1;       // New proportional gain.
+}
+
+// Generic acknowledgement returned by mutation RPCs.
+message AckResponse {
+    bool   success = 1;
+    string message = 2;
+}
+
+// ──────────────────────────────────────────────
+//  Service
+// ──────────────────────────────────────────────
+
+service ControlLoopService {
+    // Returns the current snapshot of the control loop.
+    rpc GetStatus (Empty) returns (ControlLoopStatus);
+
+    // Streams status updates at ~10 Hz (one per control-loop tick).
+    rpc StreamStatus (Empty) returns (stream ControlLoopStatus);
+
+    // Enable / disable an override on the analog-input reading.
+    rpc SetAIOverride (AIOverrideRequest) returns (AckResponse);
+
+    // Enable / disable an override on the analog-output writing.
+    rpc SetAOOverride (AOOverrideRequest) returns (AckResponse);
+
+    // Update the control-loop setpoint.
+    rpc SetSetpoint (SetpointRequest) returns (AckResponse);
+
+    // Update the proportional gain.
+    rpc SetGain (GainRequest) returns (AckResponse);
+
+    // Clear all overrides in one call.
+    rpc ClearOverrides (Empty) returns (AckResponse);
+}
