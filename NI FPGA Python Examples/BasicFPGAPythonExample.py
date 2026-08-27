@@ -82,7 +82,7 @@ def run_fpga(
 
 # --- Example Usage ---
 run_fpga(
-    bitfile_path="/home/lvuser/natinst/PythonApp/FPGAMainBitfile.lvbitx",
+    bitfile_path="/home/lvuser/PythonApp/FPGAMainBitfile_9047.lvbitx",
     resource="RIO0",
     indicator_name="Count",
     control_name="Simulated Mod2 DIO0",

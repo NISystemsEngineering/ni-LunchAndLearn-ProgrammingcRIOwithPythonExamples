@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 crio_control_loop.py
 ====================
@@ -435,6 +434,7 @@ def serve(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    time.sleep(30)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s  %(levelname)-8s  %(message)s",

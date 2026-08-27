@@ -1,0 +1,46 @@
+#!/bin/bash
+
+NAME="crio_control_loop_startup"
+APP_DIR="/home/lvuser/criocontrolapp"
+PYTHON="/home/lvuser/criocontrolapp/venv/bin/python"
+SCRIPT="/home/lvuser/criocontrolapp/crio_control_loop.py"
+LOG="/var/log/crio_control_loop_startup.log"
+PIDFILE="/var/run/crio_control_loop_startup.pid"
+
+do_start() {
+    echo "Starting $NAME"
+	export PYTHONUNBUFFERED=1
+    sleep 2
+    cd "$APP_DIR" || exit 1
+	start-stop-daemon --start --background --no-close --pidfile "$PIDFILE" --make-pidfile --chdir "$APP_DIR" --exec "$PYTHON" -- $SCRIPT $DAEMON_ARGS >> "$LOG" 2>&1
+}
+
+do_stop() {
+    echo "Stopping $NAME"
+    start-stop-daemon --stop --pidfile "$PIDFILE" --retry 10 --verbose
+    rm -f "$PIDFILE"
+}
+
+do_restart() {
+    do_stop
+    sleep 1
+    do_start
+}
+
+case "$1" in
+    start)
+        do_start
+        ;;
+    stop)
+        do_stop
+        ;;
+    restart)
+        do_restart
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0

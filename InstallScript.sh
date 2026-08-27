@@ -3,7 +3,7 @@
 echo "Installing Python..." 
 opkg install python3-pip
 echo "Moving to User Directory..."
-cd '/home/lvuser/natinst/'
+cd '/home/lvuser/'
 echo "Creating New Application Directory..."
 mkdir 'PythonApp'
 echo "Moving to New Application Directory..."

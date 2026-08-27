@@ -1,7 +1,21 @@
-cd '/home/lvuser/natinst/PythonApp'
+cd '/home/lvuser/PythonApp'
 
 source venv/bin/activate
 
 python BasicDAQmxPythonExample.py
 
 python BasicFPGAPythonExample.py
+
+cd '/home/lvuser/criocontrolapp'
+
+python crio_control_loop.py
+
+/usr/sbin/update-rc.d -f crio_control_loop_startup defaults
+
+chmod +x /etc/init.d/crio_control_loop_startup
+
+/etc/init.d/crio_control_loop_startup start
+
+/etc/init.d/crio_control_loop_startup stop
+
+/usr/sbin/update-rc.d -f crio_control_loop_startup remove

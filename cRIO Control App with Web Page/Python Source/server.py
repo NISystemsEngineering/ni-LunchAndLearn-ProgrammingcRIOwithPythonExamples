@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 CompactRIO Variable Dashboard Server
 =====================================
@@ -20,6 +19,7 @@ Then open http://<crio-ip>:8080 in a browser.
 import json
 import os
 import time
+import socket
 import argparse
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
@@ -88,6 +88,20 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         if "/data" not in args[0]:  # only log page requests, not polls
             super().log_message(format, *args)
 
+# --- Helper Routine  --------------------------------------------------------------------
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Does not have to be reachable; used only to determine the routing interface
+        s.connect(('8.8.8.8', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 # --- Main --------------------------------------------------------------------
 
 def webpage_main():
@@ -97,9 +111,11 @@ def webpage_main():
                         help="Continuously write simulated data for testing")
     args = parser.parse_args()
 
-    print(f"Dashboard running at http://192.168.68.55:{args.port}")
+    ip = get_local_ip()
+
+    print(f"Dashboard running at http://{ip}:{args.port}")
     print(f"Reading variables from {VARIABLES_FILE}")
-    server = HTTPServer(("192.168.68.55", args.port), DashboardHandler)
+    server = HTTPServer((ip, args.port), DashboardHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

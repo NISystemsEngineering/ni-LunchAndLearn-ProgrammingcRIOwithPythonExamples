@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 ssh_deploy_run.py
 =================
