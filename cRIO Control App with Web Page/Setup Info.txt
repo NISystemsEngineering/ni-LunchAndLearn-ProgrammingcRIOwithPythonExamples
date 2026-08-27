@@ -1,0 +1,46 @@
+cRIO IP: 192.168.68.57
+=========================================================================
+Deploying and Starting the App
+
+[On Windows]
+Building the proto file on Windows:
+python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. control_loop.proto
+
+[On cRIO]
+Create the venv just like the other demos
+Additionally, install grpcio-tools
+
+cd '/home/lvuser/'
+mkdir 'criocontrolapp'
+cd 'criocontrolapp'
+python -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+pip install nidaqmx
+pip install nifpga
+pip install grpcio-tools
+
+[Back on Windows]
+Move the grpc files, pyhton files, and web files to the cRIO
+
+Run the deploy app:
+python ssh_deploy_run.py  --host 192.168.68.57 --user admin --files control_loop_pb2.py control_loop_pb2_grpc.py crio_control_loop.py server.py index.html favicon.ico --remote-dir /home/lvuser/criocontrolapp --venv venv --run crio_control_loop.py
+
+[On cRIO]
+If you want to manually start the app after deploying everything...
+
+cd '/home/lvuser/criocontrolapp'
+source venv/bin/activate
+python crio_control_loop.py
+
+=========================================================================
+Configuring the App as Startup
+Use SysV to configure start script
+
+[On Windows]
+Move crio_control_loop_startup over to /etc/init.d
+
+[On cRIO]
+chmod +x /etc/init.d/crio_control_loop_startup
+/usr/sbin/update-rc.d -f crio_control_loop_startup defaults
+reboot

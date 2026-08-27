@@ -109,10 +109,10 @@ def ssh_run_python_script(
 
 # Using a virtual environment's Python interpreter
 ssh_run_python_script(
-    hostname="192.168.68.55",
+    hostname="192.168.68.57",
     username="admin",
-    remote_directory="/home/lvuser/natinst/PythonApp/",
+    remote_directory="/home/lvuser/PythonApp/",
     python_script="BasicDAQmxPythonExample.py",
     password = "",
-    python_interpreter="/home/lvuser/natinst/PythonApp/venv/bin/python"
+    python_interpreter="/home/lvuser/PythonApp/venv/bin/python"
 )
